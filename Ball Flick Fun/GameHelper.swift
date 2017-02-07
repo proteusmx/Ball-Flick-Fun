@@ -60,10 +60,10 @@ class GameHelper {
     skScene.backgroundColor = UIColor(white: 0.0, alpha: 0.0)
     
     
-    var x = SKSpriteNode(imageNamed: "ball_pink_stripe.png")
+    let x = SKSpriteNode(imageNamed: "ball_pink_stripe.png")
     
     //NOTE: location of image different from SKSPrintNote - picked up in resources folder
-    x.texture = SKTexture(imageNamed: "alice_face.png")
+   // x.texture = SKTexture(imageNamed: "alice_face.png")
     
     skScene.addChild(x)
     

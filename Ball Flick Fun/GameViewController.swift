@@ -27,6 +27,7 @@ class GameViewController: UIViewController,
   // Node properties
   var cameraNode: SCNNode!
   var shelfNode: SCNNode!
+  var shelf2Node: SCNNode!
   var baseCanNode: SCNNode!
   
   var currentBallNode: SCNNode?
@@ -100,14 +101,14 @@ class GameViewController: UIViewController,
       completionHandler: nil
     )
     
-    
-    
-    
+    // Show image picker
     picker.allowsEditing = false
     picker.sourceType = .photoLibrary
     picker.mediaTypes = UIImagePickerController.availableMediaTypes(for: .photoLibrary)!
     picker.modalPresentationStyle = .popover
+    picker.delegate=self
     present(picker, animated: true, completion: nil)
+    
     //picker.popoverPresentationController?.barButtonItem = sender
     
     
@@ -119,6 +120,14 @@ class GameViewController: UIViewController,
   {
     var  chosenImage = UIImage()
     chosenImage = info[UIImagePickerControllerOriginalImage] as! UIImage //2
+    
+    debugPrint("Here!!!")
+    debugPrint(chosenImage.description)
+    debugPrint(info)
+    debugPrint("Here END!!!")
+    
+    //helper.menuHUDMaterial.
+    
     //myImageView.contentMode = .scaleAspectFit //3
     //myImageView.image = chosenImage //4
     dismiss(animated:true, completion: nil) //5
@@ -229,11 +238,11 @@ class GameViewController: UIViewController,
   
   
   
-  func createLevelsFrom(baseNode: SCNNode) {
+  func createLevelsFrom(baseNode: SCNNode, secondNode: SCNNode) {
     
     // LEVEL 1 (3 objects)
     //Row 1
-    let coin1   = SCNVector3(x: baseNode.position.x - 2.5, y: baseNode.position.y + 2.62, z: baseNode.position.z - 2.25 )
+    let coin1   = SCNVector3(x: secondNode.position.x - 0, y: secondNode.position.y + 2.62, z: secondNode.position.z )
 
     
     let levelOneCanOne   = SCNVector3(x: baseNode.position.x - 0.5, y: baseNode.position.y + 0.62, z: baseNode.position.z )
@@ -431,7 +440,7 @@ class GameViewController: UIViewController,
     let impulseVector = SCNVector3(
       x: touchResult.localCoordinates.x * 2,
       y: touchResult.localCoordinates.y * velocityComponent * 3,
-      z: shelfNode.position.z * velocityComponent * 15
+      z: shelf2Node.position.z * velocityComponent * 15
     )
     
     ballNode.physicsBody?.applyForce(impulseVector, asImpulse: true)
@@ -483,33 +492,39 @@ class GameViewController: UIViewController,
     levelScene.physicsWorld.contactDelegate = self
     
     cameraNode = levelScene.rootNode.childNode(withName: "camera", recursively: true)!
+    
     shelfNode = levelScene.rootNode.childNode(withName: "shelf", recursively: true)!
+    shelf2Node = levelScene.rootNode.childNode(withName: "shelf2", recursively: true)!
     
     guard let canScene = SCNScene(named: "resources.scnassets/Can.scn") else { return }
     baseCanNode = canScene.rootNode.childNode(withName: "can", recursively: true)!
     
     let shelfPhysicsBody = SCNPhysicsBody(
-      type: .static,
-      shape: SCNPhysicsShape(geometry: shelfNode.geometry!)
+      type: .static, shape: SCNPhysicsShape(geometry: shelfNode.geometry!)
     )
     shelfPhysicsBody.isAffectedByGravity = false
     shelfNode.physicsBody = shelfPhysicsBody
     
+    let shelf2PhysicsBody = SCNPhysicsBody(
+      type: .static, shape: SCNPhysicsShape(geometry: shelf2Node.geometry!)
+    )
+    shelf2PhysicsBody.isAffectedByGravity = false
+    shelf2Node.physicsBody = shelf2PhysicsBody
+    
     levelScene.rootNode.addChildNode(touchCatchingPlaneNode)
+    
     touchCatchingPlaneNode.position = SCNVector3(x: 0, y: 0, z: shelfNode.position.z)
+    //touchCatchingPlaneNode.position = SCNVector3(x: 0, y: 0, z: shelf2Node.position.z)
     touchCatchingPlaneNode.eulerAngles = cameraNode.eulerAngles
     
-    createLevelsFrom(baseNode: shelfNode)
+    createLevelsFrom(baseNode: shelfNode, secondNode: shelf2Node)
     levelScene.rootNode.addChildNode(helper.hudNode)
   }
-  
   
   // MARK: - Touches
   
   override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
     super.touchesBegan(touches, with: event)
-    
-  
     
     if helper.state == .tapToPlay {
       presentLevel()
