@@ -54,7 +54,7 @@ class GameHelper {
   
   var menuHUDMaterial: SCNMaterial {
     // Create a HUD label node in SpriteKit
-    let sceneSize = CGSize(width: 300, height: 200)
+    let sceneSize = CGSize(width: 300, height: 100)
     
     let skScene = SKScene(size: sceneSize)
     skScene.backgroundColor = UIColor(white: 0.0, alpha: 0.0)
@@ -68,23 +68,23 @@ class GameHelper {
     skScene.addChild(x)
     
     let instructionLabel = SKLabelNode(fontNamed: "Menlo-Bold")
-    instructionLabel.fontSize = 65
+    instructionLabel.fontSize = 50
     instructionLabel.text = "👉🏼START👈🏼"
     instructionLabel.position.x = sceneSize.width / 2
-    instructionLabel.position.y = 135
+    instructionLabel.position.y = 55
     skScene.addChild(instructionLabel)
     
     highScoreLabelNode = SKLabelNode(fontNamed: "Menlo-Bold")
-    highScoreLabelNode.fontSize = 20
+    highScoreLabelNode.fontSize = 18
     highScoreLabelNode.position.x = sceneSize.width / 2
-    highScoreLabelNode.position.y = 100
+    highScoreLabelNode.position.y = 35
     skScene.addChild(highScoreLabelNode)
     
     let versionLabelNode = SKLabelNode(fontNamed: "Menlo-Bold")
     versionLabelNode.text = "Version 0.1"
-    versionLabelNode.fontSize = 10
+    versionLabelNode.fontSize = 9
     versionLabelNode.position.x = sceneSize.width / 2
-    versionLabelNode.position.y = 0
+    versionLabelNode.position.y = 5
     skScene.addChild(versionLabelNode)
     
     /*

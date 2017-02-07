@@ -18,6 +18,9 @@ class GameViewController: UIViewController,
   
   let picker = UIImagePickerController()
 
+  var  chosenImage = UIImage()
+  
+
   
   // Scene properties
   var menuScene = SCNScene(named: "resources.scnassets/Menu.scn")!
@@ -59,8 +62,22 @@ class GameViewController: UIViewController,
   
   override func viewDidLoad() {
     super.viewDidLoad()
-    presentMenu()
-    createScene()
+    picker.delegate = self
+    
+    perform(#selector(presentImageController), with: nil, afterDelay: 0)
+
+
+  }
+
+  
+  func presentImageController() {
+    // Show image picker
+    picker.allowsEditing = false
+    picker.sourceType = .photoLibrary
+    picker.mediaTypes = UIImagePickerController.availableMediaTypes(for: .photoLibrary)!
+    picker.modalPresentationStyle = .popover
+    picker.delegate=self
+    present(picker, animated: true, completion: nil)
   }
   
   var backgroundMusicPlayer = AVAudioPlayer()
@@ -84,13 +101,19 @@ class GameViewController: UIViewController,
   
   // MARK: - Helpers
   func presentMenu() {
+    
+    helper.menuHUDMaterial.diffuse.contents = chosenImage;
+
     let hudNode = menuScene.rootNode.childNode(withName: "hud", recursively: true)!
     hudNode.geometry?.materials = [helper.menuHUDMaterial]
     hudNode.rotation = SCNVector4(x: 1, y: 0, z: 0, w: Float(M_PI))
-    //hudNode.
+    
+    let avatarNode = menuScene.rootNode.childNode(withName: "avatar", recursively: true)!
+    avatarNode.geometry?.firstMaterial?.diffuse.contents = chosenImage;
     
     helper.state = .tapToPlay
-    helper.highScoreLabelNode.text = "Score to beat: \(helper.highScore)"
+    helper.highScoreLabelNode.text = "Score to beat: \(helper.highScore)" //+ chosenImage.description
+    
     
     let transition = SKTransition.crossFade(withDuration: 0.4)
     
@@ -100,37 +123,19 @@ class GameViewController: UIViewController,
       incomingPointOfView: nil,
       completionHandler: nil
     )
-    
-    // Show image picker
-    picker.allowsEditing = false
-    picker.sourceType = .photoLibrary
-    picker.mediaTypes = UIImagePickerController.availableMediaTypes(for: .photoLibrary)!
-    picker.modalPresentationStyle = .popover
-    picker.delegate=self
-    present(picker, animated: true, completion: nil)
-    
-    //picker.popoverPresentationController?.barButtonItem = sender
-    
-    
+
   }
   
   //MARK: - Delegates
   internal func imagePickerController(_ picker: UIImagePickerController,
                                       didFinishPickingMediaWithInfo info: [String : Any])
   {
-    var  chosenImage = UIImage()
     chosenImage = info[UIImagePickerControllerOriginalImage] as! UIImage //2
-    
-    debugPrint("Here!!!")
-    debugPrint(chosenImage.description)
-    debugPrint(info)
-    debugPrint("Here END!!!")
-    
-    //helper.menuHUDMaterial.
-    
-    //myImageView.contentMode = .scaleAspectFit //3
-    //myImageView.image = chosenImage //4
+ 
     dismiss(animated:true, completion: nil) //5
+    
+    presentMenu()
+    createScene()
   }
   func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
     dismiss(animated: true, completion: nil)
