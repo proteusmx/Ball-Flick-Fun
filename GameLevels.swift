@@ -1,9 +1,5 @@
 //
 //  Levels.swift
-//  Ball Flick Fun
-//
-//  Created by Thornton, Paul (Interactive Technology) on 07/02/2017.
-//  Copyright © 2017 Paul Thornton. All rights reserved.
 //
 
 import Foundation
@@ -12,9 +8,9 @@ import SceneKit
 
 class GameLevels {
     
-    let helper = GameHelper()
+    //let helper = GameHelper()
     
-    func createLevelsFrom(baseNode: SCNNode, secondNode: SCNNode) {
+    func createLevelsFrom(baseNode: SCNNode, secondNode: SCNNode)-> [GameLevel] {
         
         // LEVEL 1 (3 objects)
         //Row 1
@@ -167,7 +163,7 @@ class GameLevels {
                 l7o21
             ]
         )
-        helper.levels = [levelOne, levelTwo, levelThree, levelFour, l5, l6, l7]
+        return [levelOne, levelTwo, levelThree, levelFour, l5, l6, l7]
     }
 }
 
