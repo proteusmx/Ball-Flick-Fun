@@ -14,25 +14,26 @@ class GameViewController: UIViewController,
   UIImagePickerControllerDelegate,
   UINavigationControllerDelegate {
   
+//  let gameLevels = GameLevels()
   let helper = GameHelper()
-  
   let picker = UIImagePickerController()
-
-  var  chosenImage = UIImage()
+  var chosenImage = UIImage()
+  var textField = UITextField()
   
-
+  
+  //var boardCamera = SKCameraNode()
   
   // Scene properties
   var menuScene = SCNScene(named: "resources.scnassets/Menu.scn")!
   var levelScene = SCNScene(named: "resources.scnassets/Level.scn")!
   var gameOverScene = SCNScene(named: "resources.scnassets/GameOver.scn")!
-  
+
   // Node properties
   var cameraNode: SCNNode!
+  var spotlightNode: SCNNode!
   var shelfNode: SCNNode!
   var shelf2Node: SCNNode!
   var baseCanNode: SCNNode!
-  
   var currentBallNode: SCNNode?
   
   // Ball throwing mechanics
@@ -43,6 +44,12 @@ class GameViewController: UIViewController,
   
   var bashedCanNames: [String] = []
   
+  
+  var spotlightPosition: SCNVector3!
+  var spotlightEuler: SCNVector3!
+  var cameraPosition:  SCNVector3!
+  var cameraEuler: SCNVector3!
+  
   // Node that intercept touches in the scene
   lazy var touchCatchingPlaneNode: SCNNode = {
     let node = SCNNode(geometry: SCNPlane(width: 40, height: 40))
@@ -50,6 +57,8 @@ class GameViewController: UIViewController,
     node.castsShadow = false
     return node
   }()
+  
+  
   
   // Accessor for the SCNView
   var scnView: SCNView {
@@ -64,11 +73,46 @@ class GameViewController: UIViewController,
     super.viewDidLoad()
     picker.delegate = self
     
+    // TODO: uncomment to display image picker
     perform(#selector(presentImageController), with: nil, afterDelay: 0)
-
-
   }
+  
+  var counter = 2000
+  
+  func updateCounter() {
+    counter -= 1
+    //print("\(counter) seconds to the end of the world")
 
+    // NOTE: could use following technique to move from Camera 1 to Camera 2, with time and increments to x,y,z & euler 
+    // OR Zoom in at the start
+    self.cameraNode.position.z += 0.01
+    
+    if counter <= 0 {
+      self.helper.timeLabelNode.text = "0"
+      self.cameraNode.position = self.spotlightPosition
+      self.cameraNode.eulerAngles = self.spotlightEuler
+    } else {
+      self.helper.timeLabelNode.text = "⏱: " + String(counter)
+    }
+    
+    if counter == 0 {
+      let waitAction = SCNAction.wait(duration: 0.5)
+      let blockAction = SCNAction.run { _ in
+        self.presentGameOver()
+        self.resetLevel()
+        self.helper.ballNodes.removeAll()
+        self.helper.currentLevel = 0
+        //self.helper.score = 0
+        self.counter = 0
+        self.myTimer.invalidate()
+
+        //TODO: add 'Game Over' sound/music
+      }
+    let sequenceAction = SCNAction.sequence([waitAction, blockAction])
+    levelScene.rootNode.runAction(sequenceAction, forKey: GameHelper.gameEndActionKey)
+    }
+    
+  }
   
   func presentImageController() {
     // Show image picker
@@ -99,11 +143,80 @@ class GameViewController: UIViewController,
   }
   
   
+  func presentEnterUsername() {
+    // ** Capture name for highscore table
+    //1. Create the alert controller.
+    
+    var gameOverMessage = "Game Over \n\n  You scored \(self.helper.score) points!"
+    
+    if self.helper.score == 0 {
+      gameOverMessage += " \n\nCome on, try harder!!"
+    }
+    else if self.helper.score > 10 && self.helper.score < self.helper.highScore {
+      gameOverMessage += " \n\nGood effort, you're getting better!"
+    }
+    else if self.helper.score >= self.helper.highScore {
+      gameOverMessage += " \n\nWell done, you're the new high scorer!"
+    }
+    
+    let alert = UIAlertController(title: gameOverMessage, message: "Enter your username", preferredStyle: .alert)
+    
+    let usernameFromDefaults = UserDefaults.standard.string(forKey: "Username")
+    
+    
+    //2. Add the text field. You can configure it however you need.
+    alert.addTextField { (textField) in
+      textField.text = usernameFromDefaults
+      textField.minimumFontSize = 30
+    }
+    
+    // 3. Grab the value from the text field, and print it when the user clicks OK.
+    alert.addAction(UIAlertAction(title: "OK", style: .default, handler: { [weak alert] (_) in
+      self.textField = (alert?.textFields![0])! // Force unwrapping because we know it exists.
+      
+      // Store username in user defaults
+      self.helper.defaults.set(self.textField.text, forKey: "Username")
+      self.helper.defaults.set(Date(), forKey: "LastRun")
+      
+      self.helper.leaderBoard.append( LBoard(name: self.textField.text!, score: self.helper.score, dateTime: Date()) )
+
+      //sort array, so th§at highest scores are top
+      self.helper.leaderBoard = self.helper.leaderBoard.sorted(by: {$0.score > $1.score})
+      
+      
+      
+      //Encode leaderbaord to store in User Defaults
+      let encodedData: Data = NSKeyedArchiver.archivedData(withRootObject: self.helper.leaderBoard)
+      self.helper.defaults.set(encodedData, forKey: "leaderBoard")
+      self.helper.defaults.synchronize()
+      
+      //Decode
+      let decoded = self.helper.defaults.object(forKey: "leaderBoard") as! Data
+      var decodedLBoard = NSKeyedUnarchiver.unarchiveObject(with: decoded) as! [LBoard]
+
+      //sort array, so th§at highest scores are top
+      //decodedLBoard = decodedLBoard.sorted(by: {$0.score > $1.score})
+      
+      for entry in decodedLBoard {
+        print("Leaderboard entries (in GameViewController")
+        print(". entry.dateTime = \(entry.dateTime!)")
+        print(". entry.name = \(entry.name!)")
+        print(". entry.score = \(entry.score!)")
+        print("-----------")
+      }
+      
+    }))
+    
+    // 4. Present the alert.
+    self.present(alert, animated: true, completion: nil)
+  }
+  
+  
   // MARK: - Helpers
   func presentMenu() {
     
     helper.menuHUDMaterial.diffuse.contents = chosenImage;
-
+    
     let hudNode = menuScene.rootNode.childNode(withName: "hud", recursively: true)!
     hudNode.geometry?.materials = [helper.menuHUDMaterial]
     hudNode.rotation = SCNVector4(x: 1, y: 0, z: 0, w: Float(M_PI))
@@ -111,9 +224,19 @@ class GameViewController: UIViewController,
     let avatarNode = menuScene.rootNode.childNode(withName: "avatar", recursively: true)!
     avatarNode.geometry?.firstMaterial?.diffuse.contents = chosenImage;
     
-    helper.state = .tapToPlay
-    helper.highScoreLabelNode.text = "Score to beat: \(helper.highScore)" //+ chosenImage.description
+    let wallNode = menuScene.rootNode.childNode(withName: "wall", recursively: true)!
+    wallNode.geometry?.firstMaterial?.diffuse.contents = chosenImage;
     
+    helper.state = .tapToPlay
+    
+    var s = 0
+    if self.helper.leaderBoard.count > 0 {
+      s = (self.helper.leaderBoard.first?.score)!
+    }
+    helper.highScoreLabel.text = "Highscore: \(s) (\((self.helper.leaderBoard.first?.name)!))"
+    
+    // clearing leadboard from user defaults
+    //self.helper.defaults.set(nil, forKey: "leaderBoard")
     
     let transition = SKTransition.crossFade(withDuration: 0.4)
     
@@ -142,16 +265,29 @@ class GameViewController: UIViewController,
   }
   
   
-  
-  // Present Game Over Scene
+  // Present ** GAME OVER **  Scene
   func presentGameOver() {
-    let hudNode = menuScene.rootNode.childNode(withName: "hud", recursively: true)!
-    hudNode.geometry?.materials = [helper.menuHUDMaterial]
-    hudNode.rotation = SCNVector4(x: 1, y: 0, z: 0, w: Float(M_PI))
+    let tableNode = gameOverScene.rootNode.childNode(withName: "table", recursively: true)!
+    
+    //SCNMaterial
+      /*
+    tableNode.geometry?.materials
+
+    let sceneSize = CGSize(width: 300, height: 100)
+    let skScene = SKScene(size: sceneSize)
+
+
+    var highScoreLabel = SKLabelNode(fontNamed: "Menlo-Bold")
+    highScoreLabel.text = "Highscore: \((self.helper.leaderBoard.first?.score)!) (\((self.helper.leaderBoard.first?.name)!))"
+    highScoreLabel.fontSize = 18
+    highScoreLabel.position.x = 10
+    highScoreLabel.position.y = 35
+    skScene.addChild(highScoreLabel)
+    */
     
     helper.state = .gameOver
-    //todo: add your score here 
-    //helper.highScoreLabelNode.text = "Score to beat: \(helper.highScore)"
+    
+    //TODO: add leaderboard
     
     let transition = SKTransition.crossFade(withDuration: 0.4)
     
@@ -161,16 +297,29 @@ class GameViewController: UIViewController,
       incomingPointOfView: nil,
       completionHandler: nil
     )
+    
+    presentEnterUsername()
+    
   }
   
+  //var timer = Timer
+  var myTimer : Timer = Timer()
+  
+  
   func presentLevel() {
+    
+    // Start timer
+    myTimer = Timer.scheduledTimer(timeInterval: 0.01, target: self, selector: #selector(updateCounter), userInfo: nil, repeats: true)
+
     resetLevel()
     setupNextLevel()
     helper.state = .playing
     
     playBackgroundMusic(filename: "resources.scnassets/01.forever-bound-stereo-madness.mp3")
+
+
     
-    let transition = SKTransition.flipHorizontal(withDuration: 1.0)
+    let transition = SKTransition.flipHorizontal(withDuration: 0.5)
     scnView.present(
       levelScene,
       with: transition,
@@ -180,8 +329,9 @@ class GameViewController: UIViewController,
   }
   
   func resetLevel() {
+
+    counter = 2000
     currentBallNode?.removeFromParentNode()
-    
     bashedCanNames.removeAll()
     
     for canNode in helper.canNodes {
@@ -209,11 +359,12 @@ class GameViewController: UIViewController,
       
       canNode.eulerAngles = SCNVector3(x: 0, y: shouldCreateBaseVariation ? -110 : 55, z: 0)
       canNode.name = "Can #\(idx)"
+    
       
       if let materials = canNode.geometry?.materials {
         for material in materials where material.multiply.contents != nil {
           if shouldCreateBaseVariation {
-            material.multiply.contents = "resources.scnassets/alice_face.png"
+            material.multiply.contents = self.chosenImage 
           } else {
             material.multiply.contents = "resources.scnassets/sophie_face.png"
           }
@@ -233,7 +384,7 @@ class GameViewController: UIViewController,
       helper.canNodes.append(canNode)
     }
     
-    let waitAction = SCNAction.wait(duration: 0.4)
+    let waitAction = SCNAction.wait(duration: 0.1)
     let blockAction = SCNAction.run { _ in
       self.dispenseNewBall()
     }
@@ -243,12 +394,354 @@ class GameViewController: UIViewController,
   
   
   
+  func dispenseNewBall() {
+    let ballScene = SCNScene(named: "resources.scnassets/Ball.scn")!
+    
+    let ballNode = ballScene.rootNode.childNode(withName: "sphere", recursively: true)!
+    ballNode.name = "ball"
+    let ballPhysicsBody = SCNPhysicsBody(
+      type: .dynamic,
+      shape: SCNPhysicsShape(geometry: SCNSphere(radius: 0.35))
+    )
+    ballPhysicsBody.mass = 3
+    ballPhysicsBody.friction = 2
+    ballPhysicsBody.contactTestBitMask = 1
+    
+    ballNode.physicsBody = ballPhysicsBody
+    ballNode.position = SCNVector3(x: -1.75, y: 1.75, z: 8.0)
+    ballNode.physicsBody?.applyForce(SCNVector3(x: 0.825, y: 0, z: 0), asImpulse: true)
+    
+    currentBallNode = ballNode
+    levelScene.rootNode.addChildNode(ballNode)
+    
+    // Reset camera position back to original camera position
+    cameraNode.position = cameraPosition
+    cameraNode.eulerAngles = cameraEuler
+    
+  }
+  
+  
+  func throwBall() {
+    guard let ballNode = currentBallNode else { return }
+    guard let endingTouch = endTouch else { return }
+    
+    let firstTouchResult = scnView.hitTest(
+      endingTouch.location(in: view),
+      options: nil
+      ).filter({
+        $0.node == touchCatchingPlaneNode
+    }).first
+    
+    guard let touchResult = firstTouchResult else { return }
+    
+    levelScene.rootNode.runAction(
+      SCNAction.playAudio(
+        helper.whooshAudioSource,
+        waitForCompletion: false
+      )
+    )
+    
+    let timeDifference = endTouchTime - startTouchTime
+    let velocityComponent = Float(min(max(1 - timeDifference, 0.1), 1.0))
+    
+    let impulseVector = SCNVector3(
+      x: touchResult.localCoordinates.x * 2,
+      y: touchResult.localCoordinates.y * velocityComponent * 3,
+      z: shelf2Node.position.z * velocityComponent * 15
+    )
+    
+    // NOTE: attempt at positioing camera/viewpoint with the ball, doesn't work!
+//    cameraPosition.x = impulseVector.x
+//    cameraPosition.y = impulseVector.y
+//    cameraPosition.z = impulseVector.z
+    
+    ballNode.physicsBody?.applyForce(impulseVector, asImpulse: true)
+    
+    helper.ballNodes.append(ballNode)
+
+    // NOTE: 2nd attempt at positioing camera/viewpoint with the ball, doesn't work!
+//    self.cameraNode.position.x = ballNode.position.x
+//    self.cameraNode.position.y = ballNode.position.y
+//    self.cameraNode.position.z = ballNode.position.x
+    
+    // Reset
+    currentBallNode = nil
+    startTouchTime = nil
+    endTouchTime = nil
+    startTouch = nil
+    endTouch = nil
+    
+    // End of game *************************************************************
+    if helper.ballNodes.count == GameHelper.maxBallNodes {
+
+      // On last ball, on throw, move camera to spotlight position
+      self.cameraNode.position = self.spotlightPosition
+      self.cameraNode.eulerAngles = self.spotlightEuler
+
+      myTimer.invalidate()
+
+      let waitAction = SCNAction.wait(duration: 2.5)
+      let blockAction = SCNAction.run { _ in
+        self.presentGameOver()
+        self.resetLevel()
+        self.helper.ballNodes.removeAll()
+        self.helper.currentLevel = 0
+        //self.helper.score = 0
+        self.counter = 0
+        //TODO: add 'Game Over' sound/music
+      }
+      let sequenceAction = SCNAction.sequence([waitAction, blockAction])
+      levelScene.rootNode.runAction(sequenceAction, forKey: GameHelper.gameEndActionKey)
+      
+    // Add new balls
+    } else {
+      // Reset camera position back to original camera position
+      cameraNode.position = cameraPosition
+      cameraNode.eulerAngles = cameraEuler
+      
+      let waitAction = SCNAction.wait(duration: 0.3)
+      let blockAction = SCNAction.run { _ in
+        self.dispenseNewBall()
+      }
+      
+      let sequenceAction = SCNAction.sequence([waitAction, blockAction])
+      levelScene.rootNode.runAction(sequenceAction)
+    }
+    
+    //Hide ball after a delay
+    let waitAction = SCNAction.wait(duration: 2.0)
+    let fadeOutAction = SCNAction.fadeOut(duration: 1.0)
+    let blockAction = SCNAction.run { _ in
+      ballNode.physicsBody = nil
+    }
+    let sequenceAction = SCNAction.sequence([waitAction, fadeOutAction, blockAction])
+    
+    ballNode.runAction(sequenceAction)
+  }
+  
+  // MARK: - Creation
+  func createScene() {
+    levelScene.physicsWorld.contactDelegate = self
+    
+    // NOTE: technique to change the image of the wall on the level
+    //let levelNode = levelScene.rootNode.childNode(withName: "wall", recursively: true)!.childNode(withName: "wall", recursively: true)!
+    //levelNode.geometry?.firstMaterial?.diffuse.contents = chosenImage;
+    
+    cameraNode = levelScene.rootNode.childNode(withName: "camera", recursively: true)!
+    spotlightNode = levelScene.rootNode.childNode(withName: "spot", recursively: true)!
+
+    // Capture original camera position and euler
+    cameraPosition = cameraNode.position
+    cameraEuler = cameraNode.eulerAngles
+
+    // Capture spotlight position and euler
+    spotlightPosition = spotlightNode.position
+    spotlightEuler = spotlightNode.eulerAngles
+
+    shelfNode = levelScene.rootNode.childNode(withName: "shelf", recursively: true)!
+    shelf2Node = levelScene.rootNode.childNode(withName: "shelf2", recursively: true)!
+    
+    guard let canScene = SCNScene(named: "resources.scnassets/Can.scn") else { return }
+    baseCanNode = canScene.rootNode.childNode(withName: "can", recursively: true)!
+    
+    let shelfPhysicsBody = SCNPhysicsBody(
+      type: .static, shape: SCNPhysicsShape(geometry: shelfNode.geometry!)
+    )
+    shelfPhysicsBody.isAffectedByGravity = false
+    shelfNode.physicsBody = shelfPhysicsBody
+    
+    let shelf2PhysicsBody = SCNPhysicsBody(
+      type: .static, shape: SCNPhysicsShape(geometry: shelf2Node.geometry!)
+    )
+    shelf2PhysicsBody.isAffectedByGravity = false
+    shelf2Node.physicsBody = shelf2PhysicsBody
+    
+    levelScene.rootNode.addChildNode(touchCatchingPlaneNode)
+    
+    touchCatchingPlaneNode.position = SCNVector3(x: 0, y: 0, z: shelfNode.position.z)
+    //touchCatchingPlaneNode.position = SCNVector3(x: 0, y: 0, z: shelf2Node.position.z)
+    touchCatchingPlaneNode.eulerAngles = cameraNode.eulerAngles
+    
+    // TODO: runtime error if we try to pull levels in from GameLevels :-/
+    // gameLevels.createLevelsFrom(baseNode: shelfNode, secondNode: shelf2Node)
+    createLevelsFrom(baseNode: shelfNode, secondNode: shelf2Node)
+    levelScene.rootNode.addChildNode(helper.hudNode)
+  }
+  
+  // MARK: - Touches
+  
+  override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+    super.touchesBegan(touches, with: event)
+    
+    if helper.state == .tapToPlay {
+      self.helper.score = 0
+      presentLevel()
+    } else if helper.state == .gameOver {
+      presentMenu()
+    } else {
+      guard let firstTouch = touches.first else { return }
+      
+      let point = firstTouch.location(in: scnView)
+      let hitResults = scnView.hitTest(point, options: [:])
+      
+      if hitResults.first?.node == currentBallNode {
+        startTouch = touches.first
+        startTouchTime = Date().timeIntervalSince1970
+      }
+    }
+ 
+  }
+  
+  /*
+  TODO: experiment to change move to touch location, AIM: enable view to change to ball being flicked at cans
+  override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+    super.touchesMoved(touches, with: event)
+    
+    for touch in touches {
+      
+      let location = touch.location(in: scnView)
+      let previousLocation = touch.location(in: scnView)
+      let deltaY = location.y - previousLocation.y
+      //cameraNode.position.y = cameraNode.position.y + deltaY
+    }
+  }
+  
+  */
+  
+  override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+    super.touchesEnded(touches, with: event)
+    
+    guard startTouch != nil else { return }
+    
+    endTouch = touches.first
+    endTouchTime = Date().timeIntervalSince1970
+    
+    throwBall()
+    
+    //cameraNode.position = spotlightPosition
+    //cameraNode.eulerAngles = spotlightEuler
+  }
+  
+  
+  // NOTE: if we want to hige status bar change to 'false'
+  //override var prefersStatusBarHidden : Bool {
+  //  return true
+  //}
+  
+  override var supportedInterfaceOrientations : UIInterfaceOrientationMask {
+    return UIDevice.current.userInterfaceIdiom == .phone ? .portrait : .all
+  }
+  
+}
+
+extension GameViewController: SCNPhysicsContactDelegate {
+  
+  // MARK: SCNPhysicsContactDelegate
+  func physicsWorld(_ world: SCNPhysicsWorld, didBegin contact: SCNPhysicsContact) {
+    guard let nodeNameA = contact.nodeA.name else { return }
+    guard let nodeNameB = contact.nodeB.name else { return }
+    
+    var ballFloorContactNode: SCNNode?
+    if nodeNameA == "ball" && nodeNameB == "floor" {
+      ballFloorContactNode = contact.nodeA
+    } else if nodeNameB == "ball" && nodeNameA == "floor" {
+      ballFloorContactNode = contact.nodeB
+    }
+    
+    if let ballNode = ballFloorContactNode {
+      guard ballNode.action(forKey: GameHelper.ballFloorCollisionAudioKey) == nil else { return }
+      
+      ballNode.runAction(
+        SCNAction.playAudio(
+          helper.ballFloorAudioSource,
+          waitForCompletion: true
+        ),
+        forKey: GameHelper.ballFloorCollisionAudioKey
+      )
+      return
+    }
+    
+    var ballCanContactNode: SCNNode?
+    if nodeNameA.contains("Can") && nodeNameB == "ball" {
+      ballCanContactNode = contact.nodeA
+    } else if nodeNameB.contains("Can") && nodeNameA == "ball" {
+      ballCanContactNode = contact.nodeB
+    }
+    
+    if let canNode = ballCanContactNode {
+      guard canNode.action(forKey: GameHelper.ballCanCollisionAudioKey) == nil else {
+        return
+      }
+      
+      canNode.runAction(
+        SCNAction.playAudio(
+          helper.ballCanAudioSource,
+          waitForCompletion: true
+        ),
+        forKey: GameHelper.ballCanCollisionAudioKey
+      )
+      return
+    }
+    
+    if bashedCanNames.contains(nodeNameA) || bashedCanNames.contains(nodeNameB) { return }
+    
+    var canNodeWithContact: SCNNode?
+    if nodeNameA.contains("Can") && nodeNameB == "floor" {
+      canNodeWithContact = contact.nodeA
+    } else if nodeNameB.contains("Can") && nodeNameA == "floor" {
+      canNodeWithContact = contact.nodeB
+    }
+    
+    if let bashedCan = canNodeWithContact {
+      bashedCan.runAction(
+        SCNAction.playAudio(
+          helper.canFloorAudioSource,
+          waitForCompletion: false
+        )
+      )
+      bashedCanNames.append(bashedCan.name!)
+      helper.score += 1
+    }
+    
+    if bashedCanNames.count == helper.canNodes.count {
+      
+      // Add additional points for any balls remaining
+      let ballsRemaining = (GameHelper.maxBallNodes - helper.ballNodes.count)
+      helper.score += (ballsRemaining * 5)
+
+      helper.score += (counter * 5)
+      
+      
+      if levelScene.rootNode.action(forKey: GameHelper.gameEndActionKey) != nil {
+        levelScene.rootNode.removeAction(forKey: GameHelper.gameEndActionKey)
+      }
+      
+      let maxLevelIndex = helper.levels.count - 1
+      
+      if helper.currentLevel == maxLevelIndex {
+        helper.currentLevel = 0
+      } else {
+        helper.currentLevel += 1
+        self.helper.ballNodes.removeAll()
+      }
+      
+      let waitAction = SCNAction.wait(duration: 1.0)
+      let blockAction = SCNAction.run { _ in
+        self.resetLevel()
+        self.setupNextLevel()
+      }
+      let sequenceAction = SCNAction.sequence([waitAction, blockAction])
+      levelScene.rootNode.runAction(sequenceAction)
+    }
+  }
+  
+  
   func createLevelsFrom(baseNode: SCNNode, secondNode: SCNNode) {
     
     // LEVEL 1 (3 objects)
     //Row 1
     let coin1   = SCNVector3(x: secondNode.position.x - 0, y: secondNode.position.y + 2.62, z: secondNode.position.z )
-
+    
     
     let levelOneCanOne   = SCNVector3(x: baseNode.position.x - 0.5, y: baseNode.position.y + 0.62, z: baseNode.position.z )
     let levelOneCanTwo   = SCNVector3(x: baseNode.position.x + 0.5, y: baseNode.position.y + 0.62, z: baseNode.position.z )
@@ -256,8 +749,8 @@ class GameViewController: UIViewController,
     let levelOneCanThree = SCNVector3(x: baseNode.position.x + 0.0, y: baseNode.position.y + 1.75, z: baseNode.position.z )
     let levelOne = GameLevel(
       canPositions: [ coin1,
-        levelOneCanOne,   levelOneCanTwo,
-                levelOneCanThree
+                      levelOneCanOne,   levelOneCanTwo,
+                      levelOneCanThree
       ]
     )
     // LEVEL 2 (4 objects)
@@ -284,7 +777,7 @@ class GameViewController: UIViewController,
     let levelThree = GameLevel(
       canPositions: [
         levelThreeCanOne,   levelThreeCanTwo,   levelThreeCanThree,
-                levelThreeCanFour,  levelThreeCanFive
+        levelThreeCanFour,  levelThreeCanFive
       ]
     )
     // LEVEL 4 (6 objects)
@@ -398,275 +891,31 @@ class GameViewController: UIViewController,
     )
     helper.levels = [levelOne, levelTwo, levelThree, levelFour, l5, l6, l7]
   }
-  
-  func dispenseNewBall() {
-    let ballScene = SCNScene(named: "resources.scnassets/Ball.scn")!
-    
-    let ballNode = ballScene.rootNode.childNode(withName: "sphere", recursively: true)!
-    ballNode.name = "ball"
-    let ballPhysicsBody = SCNPhysicsBody(
-      type: .dynamic,
-      shape: SCNPhysicsShape(geometry: SCNSphere(radius: 0.35))
-    )
-    ballPhysicsBody.mass = 3
-    ballPhysicsBody.friction = 2
-    ballPhysicsBody.contactTestBitMask = 1
-    ballNode.physicsBody = ballPhysicsBody
-    ballNode.position = SCNVector3(x: -1.75, y: 1.75, z: 8.0)
-    ballNode.physicsBody?.applyForce(SCNVector3(x: 0.825, y: 0, z: 0), asImpulse: true)
-    
-    currentBallNode = ballNode
-    levelScene.rootNode.addChildNode(ballNode)
-  }
-  
-  func throwBall() {
-    guard let ballNode = currentBallNode else { return }
-    guard let endingTouch = endTouch else { return }
-    
-    let firstTouchResult = scnView.hitTest(
-      endingTouch.location(in: view),
-      options: nil
-      ).filter({
-        $0.node == touchCatchingPlaneNode
-    }).first
-    
-    guard let touchResult = firstTouchResult else { return }
-    
-    levelScene.rootNode.runAction(
-      SCNAction.playAudio(
-        helper.whooshAudioSource,
-        waitForCompletion: false
-      )
-    )
-    
-    let timeDifference = endTouchTime - startTouchTime
-    let velocityComponent = Float(min(max(1 - timeDifference, 0.1), 1.0))
-    
-    let impulseVector = SCNVector3(
-      x: touchResult.localCoordinates.x * 2,
-      y: touchResult.localCoordinates.y * velocityComponent * 3,
-      z: shelf2Node.position.z * velocityComponent * 15
-    )
-    
-    ballNode.physicsBody?.applyForce(impulseVector, asImpulse: true)
-    helper.ballNodes.append(ballNode)
-    
-    currentBallNode = nil
-    startTouchTime = nil
-    endTouchTime = nil
-    startTouch = nil
-    endTouch = nil
-    
-    // End of game
-    if helper.ballNodes.count == GameHelper.maxBallNodes {
-      let waitAction = SCNAction.wait(duration: 2.5)
-      let blockAction = SCNAction.run { _ in
-        self.resetLevel()
-        self.helper.ballNodes.removeAll()
-        self.helper.currentLevel = 0
-        self.helper.score = 0
-        //self.presentMenu()
-        self.presentGameOver()
-      }
-      let sequenceAction = SCNAction.sequence([waitAction, blockAction])
-      levelScene.rootNode.runAction(sequenceAction, forKey: GameHelper.gameEndActionKey)
-      
-    // Add new balls
-    } else {
-      let waitAction = SCNAction.wait(duration: 0.3)
-      let blockAction = SCNAction.run { _ in
-        self.dispenseNewBall()
-      }
-      let sequenceAction = SCNAction.sequence([waitAction, blockAction])
-      levelScene.rootNode.runAction(sequenceAction)
-    }
-    
-    //Hide ball after a delay
-    let waitAction = SCNAction.wait(duration: 2.0)
-    let fadeOutAction = SCNAction.fadeOut(duration: 1.0)
-    let blockAction = SCNAction.run { _ in
-      ballNode.physicsBody = nil
-    }
-    let sequenceAction = SCNAction.sequence([waitAction, fadeOutAction, blockAction])
-    
-    ballNode.runAction(sequenceAction)
-  }
-  
-  // MARK: - Creation
-  func createScene() {
-    levelScene.physicsWorld.contactDelegate = self
-    
-    cameraNode = levelScene.rootNode.childNode(withName: "camera", recursively: true)!
-    
-    shelfNode = levelScene.rootNode.childNode(withName: "shelf", recursively: true)!
-    shelf2Node = levelScene.rootNode.childNode(withName: "shelf2", recursively: true)!
-    
-    guard let canScene = SCNScene(named: "resources.scnassets/Can.scn") else { return }
-    baseCanNode = canScene.rootNode.childNode(withName: "can", recursively: true)!
-    
-    let shelfPhysicsBody = SCNPhysicsBody(
-      type: .static, shape: SCNPhysicsShape(geometry: shelfNode.geometry!)
-    )
-    shelfPhysicsBody.isAffectedByGravity = false
-    shelfNode.physicsBody = shelfPhysicsBody
-    
-    let shelf2PhysicsBody = SCNPhysicsBody(
-      type: .static, shape: SCNPhysicsShape(geometry: shelf2Node.geometry!)
-    )
-    shelf2PhysicsBody.isAffectedByGravity = false
-    shelf2Node.physicsBody = shelf2PhysicsBody
-    
-    levelScene.rootNode.addChildNode(touchCatchingPlaneNode)
-    
-    touchCatchingPlaneNode.position = SCNVector3(x: 0, y: 0, z: shelfNode.position.z)
-    //touchCatchingPlaneNode.position = SCNVector3(x: 0, y: 0, z: shelf2Node.position.z)
-    touchCatchingPlaneNode.eulerAngles = cameraNode.eulerAngles
-    
-    createLevelsFrom(baseNode: shelfNode, secondNode: shelf2Node)
-    levelScene.rootNode.addChildNode(helper.hudNode)
-  }
-  
-  // MARK: - Touches
-  
-  override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-    super.touchesBegan(touches, with: event)
-    
-    if helper.state == .tapToPlay {
-      presentLevel()
-    } else if helper.state == .gameOver {
-      presentMenu()
-    } else {
-      guard let firstTouch = touches.first else { return }
-      
-      let point = firstTouch.location(in: scnView)
-      let hitResults = scnView.hitTest(point, options: [:])
-      
-      if hitResults.first?.node == currentBallNode {
-        startTouch = touches.first
-        startTouchTime = Date().timeIntervalSince1970
-      }
-    }
- 
-  }
-  
-  override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-    super.touchesEnded(touches, with: event)
-    
-    guard startTouch != nil else { return }
-    
-    endTouch = touches.first
-    endTouchTime = Date().timeIntervalSince1970
-    throwBall()
-  }
-  
-  
-  // MARK: - ViewController Overrides
-  //override var prefersStatusBarHidden : Bool {
-  //  return true
-  //}
-  
-  override var supportedInterfaceOrientations : UIInterfaceOrientationMask {
-    return UIDevice.current.userInterfaceIdiom == .phone ? .portrait : .all
-  }
-  
+
 }
 
-extension GameViewController: SCNPhysicsContactDelegate {
+// Leaderboard object
+class LBoard: NSObject, NSCoding{
+  var name: String!
+  var score: Int!
+  var dateTime: Date!
   
-  // MARK: SCNPhysicsContactDelegate
-  func physicsWorld(_ world: SCNPhysicsWorld, didBegin contact: SCNPhysicsContact) {
-    guard let nodeNameA = contact.nodeA.name else { return }
-    guard let nodeNameB = contact.nodeB.name else { return }
-    
-    var ballFloorContactNode: SCNNode?
-    if nodeNameA == "ball" && nodeNameB == "floor" {
-      ballFloorContactNode = contact.nodeA
-    } else if nodeNameB == "ball" && nodeNameA == "floor" {
-      ballFloorContactNode = contact.nodeB
-    }
-    
-    if let ballNode = ballFloorContactNode {
-      guard ballNode.action(forKey: GameHelper.ballFloorCollisionAudioKey) == nil else { return }
-      
-      ballNode.runAction(
-        SCNAction.playAudio(
-          helper.ballFloorAudioSource,
-          waitForCompletion: true
-        ),
-        forKey: GameHelper.ballFloorCollisionAudioKey
-      )
-      return
-    }
-    
-    var ballCanContactNode: SCNNode?
-    if nodeNameA.contains("Can") && nodeNameB == "ball" {
-      ballCanContactNode = contact.nodeA
-    } else if nodeNameB.contains("Can") && nodeNameA == "ball" {
-      ballCanContactNode = contact.nodeB
-    }
-    
-    if let canNode = ballCanContactNode {
-      guard canNode.action(forKey: GameHelper.ballCanCollisionAudioKey) == nil else {
-        return
-      }
-      
-      canNode.runAction(
-        SCNAction.playAudio(
-          helper.ballCanAudioSource,
-          waitForCompletion: true
-        ),
-        forKey: GameHelper.ballCanCollisionAudioKey
-      )
-      return
-    }
-    
-    if bashedCanNames.contains(nodeNameA) || bashedCanNames.contains(nodeNameB) { return }
-    
-    var canNodeWithContact: SCNNode?
-    if nodeNameA.contains("Can") && nodeNameB == "floor" {
-      canNodeWithContact = contact.nodeA
-    } else if nodeNameB.contains("Can") && nodeNameA == "floor" {
-      canNodeWithContact = contact.nodeB
-    }
-    
-    if let bashedCan = canNodeWithContact {
-      bashedCan.runAction(
-        SCNAction.playAudio(
-          helper.canFloorAudioSource,
-          waitForCompletion: false
-        )
-      )
-      bashedCanNames.append(bashedCan.name!)
-      helper.score += 1
-    }
-    
-    if bashedCanNames.count == helper.canNodes.count {
-      
-      // Add additional points for any balls remaining
-      let ballsRemaining = (GameHelper.maxBallNodes - helper.ballNodes.count)
-      
-      helper.score += (ballsRemaining * 5)
-      
-      if levelScene.rootNode.action(forKey: GameHelper.gameEndActionKey) != nil {
-        levelScene.rootNode.removeAction(forKey: GameHelper.gameEndActionKey)
-      }
-      
-      let maxLevelIndex = helper.levels.count - 1
-      
-      if helper.currentLevel == maxLevelIndex {
-        helper.currentLevel = 0
-      } else {
-        helper.currentLevel += 1
-        self.helper.ballNodes.removeAll()
-      }
-      
-      let waitAction = SCNAction.wait(duration: 1.0)
-      let blockAction = SCNAction.run { _ in
-        self.resetLevel()
-        self.setupNextLevel()
-      }
-      let sequenceAction = SCNAction.sequence([waitAction, blockAction])
-      levelScene.rootNode.runAction(sequenceAction)
-    }
+  init(name:String, score: Int, dateTime: Date) {
+    self.name = name
+    self.score = score
+    self.dateTime = dateTime
+  }
+  
+  required convenience init(coder aDecoder: NSCoder) {
+    let name = aDecoder.decodeObject(forKey: "name") as! String
+    let score = aDecoder.decodeObject(forKey: "score") as! Int
+    let dateTime = aDecoder.decodeObject(forKey: "dateTime") as! Date
+    self.init(name: name, score: score, dateTime: dateTime)
+  }
+  
+  func encode(with aCoder: NSCoder) {
+    aCoder.encode(name, forKey: "name")
+    aCoder.encode(score, forKey: "score")
+    aCoder.encode(dateTime, forKey: "dateTime")
   }
 }

@@ -86,6 +86,7 @@
    </AnalyzeAction>
    <ArchiveAction
       buildConfiguration = "Release"
+      customArchiveName = "Ball Flick Fun"
       revealArchiveInOrganizer = "YES">
    </ArchiveAction>
 </Scheme>
