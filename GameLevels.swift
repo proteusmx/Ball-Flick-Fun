@@ -14,16 +14,12 @@ class GameLevels {
         
         // LEVEL 1 (3 objects)
         //Row 1
-        let coin1   = SCNVector3(x: secondNode.position.x - 0, y: secondNode.position.y + 2.62, z: secondNode.position.z )
-        
-        
         let levelOneCanOne   = SCNVector3(x: baseNode.position.x - 0.5, y: baseNode.position.y + 0.62, z: baseNode.position.z )
         let levelOneCanTwo   = SCNVector3(x: baseNode.position.x + 0.5, y: baseNode.position.y + 0.62, z: baseNode.position.z )
         //Row 2
         let levelOneCanThree = SCNVector3(x: baseNode.position.x + 0.0, y: baseNode.position.y + 1.75, z: baseNode.position.z )
         let levelOne = GameLevel(
-            canPositions: [ coin1,
-                            levelOneCanOne,   levelOneCanTwo,
+            canPositions: [ levelOneCanOne,   levelOneCanTwo,
                             levelOneCanThree
             ]
         )
@@ -124,7 +120,10 @@ class GameLevels {
             ]
         )
         
-        // LEVEL 7 (21 objects)
+        // LEVEL 7 (21 objects + coin)
+        
+        let coin1   = SCNVector3(x: secondNode.position.x - 0, y: secondNode.position.y + 2.62, z: secondNode.position.z )
+        
         // 1st row
         let l7o1 = SCNVector3(x: baseNode.position.x - 2.00, y: baseNode.position.y + 0.62, z: baseNode.position.z)
         let l7o2 = SCNVector3(x: baseNode.position.x - 1.00, y: baseNode.position.y + 0.62, z: baseNode.position.z)
@@ -154,7 +153,7 @@ class GameLevels {
         let l7o21 = SCNVector3(x: baseNode.position.x + 0.00, y: baseNode.position.y + 5.80, z: baseNode.position.z)
         
         let l7 = GameLevel(
-            canPositions: [
+            canPositions: [ coin1,
                 l7o1, l7o2, l7o3, l7o4, l7o5, l7o6,
                 l7o7, l7o8, l7o9, l7o10, l7o11,
                 l7o12, l7o13, l7o14, l7o15,

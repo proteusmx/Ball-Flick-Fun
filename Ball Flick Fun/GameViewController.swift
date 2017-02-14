@@ -24,6 +24,7 @@ class GameViewController: UIViewController,
   var menuScene = SCNScene(named: "resources.scnassets/Menu.scn")!
   var levelScene = SCNScene(named: "resources.scnassets/Level.scn")!
   var gameOverScene = SCNScene(named: "resources.scnassets/GameOver.scn")!
+  var levelSelectorScene = SCNScene(named: "resources.scnassets/LevelSelector.scn")!
 
   // Node properties
   var cameraNode: SCNNode!
@@ -75,13 +76,8 @@ class GameViewController: UIViewController,
     super.viewDidLoad()
     picker.delegate = self
     
-    //self.originalCameraZPosition = self.cameraNode.position.z
-
     presentMenu()
     createScene()
-
-    
-    //perform(#selector(presentImageController), with: nil, afterDelay: 0)
   }
   
   var counter = 2000 // Level countdown
@@ -149,7 +145,7 @@ class GameViewController: UIViewController,
         modifier = 0.01
       }
       
-      print("Modifier = \(modifier) :: Z = \(self.cameraNode.position.z)")
+      //debugPrint("Modifier = \(modifier) :: Z = \(self.cameraNode.position.z)")
       self.cameraNode.position.z -= modifier
     }
   }
@@ -208,7 +204,7 @@ class GameViewController: UIViewController,
     //2. Add the text field. You can configure it however you need.
     alert.addTextField { (textField) in
       textField.text = usernameFromDefaults
-      textField.minimumFontSize = 30
+      textField.minimumFontSize = 60
     }
     
     // 3. Grab the value from the text field, and print it when the user clicks OK.
@@ -306,7 +302,7 @@ class GameViewController: UIViewController,
   
   // Present ** GAME OVER **  Scene
   func presentGameOver() {
-    let tableNode = gameOverScene.rootNode.childNode(withName: "table", recursively: true)!
+    //let tableNode = gameOverScene.rootNode.childNode(withName: "table", recursively: true)!
     
     //SCNMaterial
       /*
@@ -327,7 +323,9 @@ class GameViewController: UIViewController,
     
     //TODO: add leaderboard
     
-    let transition = SKTransition.crossFade(withDuration: 0.4)
+    presentEnterUsername()
+
+    let transition = SKTransition.doorsCloseHorizontal(withDuration: 0.4)
     
     scnView.present(
       gameOverScene,
@@ -335,8 +333,6 @@ class GameViewController: UIViewController,
       incomingPointOfView: nil,
       completionHandler: nil
     )
-    
-    presentEnterUsername()
     
   }
   
@@ -347,14 +343,12 @@ class GameViewController: UIViewController,
     myTimer = Timer.scheduledTimer(timeInterval: 0.01, target: self, selector: #selector(updateCounter), userInfo: nil, repeats: true)
     // STart timer, level zoom in
     myTimer2 = Timer.scheduledTimer(timeInterval: 0.001, target: self, selector: #selector(zoomIn), userInfo: nil, repeats: true)
-
     
     resetLevel()
     setupNextLevel()
     helper.state = .playing
     
     playBackgroundMusic(filename: "resources.scnassets/01.forever-bound-stereo-madness.mp3")
-
 
     let transition = SKTransition.flipHorizontal(withDuration: 0.5)
     scnView.present(
@@ -386,6 +380,7 @@ class GameViewController: UIViewController,
     }
   }
   
+  
   func setupNextLevel() {
     if helper.ballNodes.count > 0 {
       helper.ballNodes.removeLast()
@@ -398,6 +393,7 @@ class GameViewController: UIViewController,
     
     
     let level = helper.levels[helper.currentLevel]
+    
     for idx in 0..<level.canPositions.count {
       let canNode = baseCanNode.clone()
       canNode.geometry = baseCanNode.geometry?.copy() as? SCNGeometry
@@ -448,14 +444,15 @@ class GameViewController: UIViewController,
     ballNode.name = "ball"
     let ballPhysicsBody = SCNPhysicsBody(
       type: .dynamic,
-      shape: SCNPhysicsShape(geometry: SCNSphere(radius: 0.35))
+      shape: SCNPhysicsShape(geometry: SCNSphere(radius: 0.5))
     )
-    ballPhysicsBody.mass = 3
-    ballPhysicsBody.friction = 2
+    ballPhysicsBody.mass = 2
+    ballPhysicsBody.friction = 10
     ballPhysicsBody.contactTestBitMask = 1
     
+    
     ballNode.physicsBody = ballPhysicsBody
-    ballNode.position = SCNVector3(x: -1.75, y: 1.75, z: 8.0)
+    ballNode.position = SCNVector3(x: -3.0, y: 4.75, z: 8.0)
     ballNode.physicsBody?.applyForce(SCNVector3(x: 0.825, y: 0, z: 0), asImpulse: true)
     
     currentBallNode = ballNode
@@ -514,15 +511,18 @@ class GameViewController: UIViewController,
     endTouch = nil
     
     // End of game *************************************************************
-    if helper.ballNodes.count == GameHelper.maxBallNodes {
+    if helper.ballNodes.count == GameHelper.maxBallNodes+1 {
 
       // On last ball, on throw, move camera to spotlight position
       self.cameraNode.position = self.spotlightPosition
       self.cameraNode.eulerAngles = self.spotlightEuler
 
-      myTimer.invalidate()
 
-      let waitAction = SCNAction.wait(duration: 2.5)
+      myTimer.invalidate()
+      
+      // TODO: save current level to user defaults
+
+      let waitAction = SCNAction.wait(duration: 1.5)
       let blockAction = SCNAction.run { _ in
         self.presentGameOver()
         self.resetLevel()
@@ -627,25 +627,60 @@ class GameViewController: UIViewController,
       let avatarNode = menuScene.rootNode.childNode(withName: "avatar", recursively: true)!
       let titleNode = menuScene.rootNode.childNode(withName: "title", recursively: true)!
       
-      
-      if hitResults.first?.node == hudNode {
-        presentLevel()
-      }
-      if hitResults.first?.node == avatarNode {
-        self.presentImageController()
-      }
       if hitResults.first?.node == titleNode {
         //hitResults.first?.node.position
         //self.cameraNode.position.x = (hitResults.first?.worldCoordinates.x)!
-        
-
       }
       
+      if hitResults.first?.node == hudNode {
+        //presentLevel()
+        
+        // Select Level
+        let transition = SKTransition.doorway(withDuration: 0.5)
+        
+        
+        for n in 1...9 {
+          var lSS = levelSelectorScene.rootNode.childNode(withName: "box\(n)", recursively: true)
+          lSS?.geometry?.materials[0].diffuse.contents = UIColor.blue
+        }
+        
+        
+        
+        scnView.present(
+          levelSelectorScene,
+          with: transition,
+          incomingPointOfView: nil,
+          completionHandler: nil
+        )
+      }
+
+      if hitResults.first?.node == avatarNode {
+        self.presentImageController()
+      }
+
+
+      let n:String = hitResults.first!.node.name!
+
+      // Set level to the selected one on the LevelSelector screen
+      if n.contains("box") {
+        
+        var temp  = n.characters.map{String($0)}
+        let o = Int(String(temp[3]))
+        
+        helper.currentLevel = o! - 1
+        //presentLevel()
+        
+        //hitResults.first?.node.position.z = -4
+        hitResults.first?.node.geometry?.materials[0].diffuse.contents = UIColor.blue
+      }
+
       //let camNode = menuScene.rootNode.childNode(withName: "camera", recursively: true)!
-      
       //camNode.position.x = (hitResults.first?.worldCoordinates.x)!
       
-      //print("Touch location: X = \(hitResults.first?.worldCoordinates.x), Y = \(hitResults.first?.worldCoordinates.y)), Z = \(hitResults.first?.worldCoordinates.z))")
+      print("Touch location: X = \(hitResults.first?.worldCoordinates.x), Y = \(hitResults.first?.worldCoordinates.y)), Z = \(hitResults.first?.worldCoordinates.z))")
+      
+      print("Node Name = \(hitResults.first?.node.name)")
+      print("Node = \(hitResults.first?.node.description)")
       
       
     // Game over view
@@ -685,7 +720,7 @@ class GameViewController: UIViewController,
       //camNode.position.y = (hitResults.first?.worldCoordinates.y)!
       //camNode.position.z = (hitResults.first?.worldCoordinates.z)!
       
-      print("Touch location: X = \(hitResults.first?.worldCoordinates.x), Y = \(hitResults.first?.worldCoordinates.y)), Z = \(hitResults.first?.worldCoordinates.z))")
+      debugPrint("Touch pos= X: \(hitResults.first?.worldCoordinates.x), Y: \(hitResults.first?.worldCoordinates.y)), Z: \(hitResults.first?.worldCoordinates.z))")
     
     }
     
@@ -784,6 +819,8 @@ extension GameViewController: SCNPhysicsContactDelegate {
         )
       )
       bashedCanNames.append(bashedCan.name!)
+      
+      // points for bashed cans
       helper.score += 1
     }
     
@@ -791,9 +828,12 @@ extension GameViewController: SCNPhysicsContactDelegate {
       
       // Add additional points for any balls remaining
       let ballsRemaining = (GameHelper.maxBallNodes - helper.ballNodes.count)
+      
+      // extra points for ball remaining
       helper.score += (ballsRemaining * 5)
-
-      helper.score += (counter * 5)
+      
+      // extra points for time remaining
+      helper.score += (counter)
       
       
       if levelScene.rootNode.action(forKey: GameHelper.gameEndActionKey) != nil {
