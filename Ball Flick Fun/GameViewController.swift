@@ -642,7 +642,7 @@ class GameViewController: UIViewController,
           let lSS = levelSelectorScene.rootNode.childNode(withName: "box\(n)", recursively: true)
           lSS?.geometry?.materials[0].diffuse.contents = UIColor.red
         }
-        for n in 1...levelsCompleted {
+        for n in 1...levelsCompleted+1 {
           let lSS = levelSelectorScene.rootNode.childNode(withName: "box\(n)", recursively: true)
           lSS?.geometry?.materials[0].diffuse.contents = UIColor.green
         }
