@@ -187,7 +187,7 @@ class GameViewController: UIViewController,
     
     let levelsCompleted = helper.defaults.integer(forKey: "LevelReached")
     
-    var gameOverMessage = "Game Over \n\n  You scored \(self.helper.score) points! You reached level \(levelsCompleted)"
+    var gameOverMessage = "Game Over \n\n  You scored \(self.helper.score) points! You reached level \(levelsCompleted + 1)"
     
     if self.helper.score == 0 {
       gameOverMessage += " \n\nCome on, try harder!!"
@@ -271,7 +271,7 @@ class GameViewController: UIViewController,
     var s = 0
     if self.helper.leaderBoard.count > 0 {
       s = (self.helper.leaderBoard.first?.score)!
-      helper.highScoreLabel.text = "Highscore: \(s) (\((self.helper.leaderBoard.first?.name)!))"
+      helper.highScoreLabel.text = "Highscore: \((self.helper.leaderBoard.first?.name)!) - \(s), level: \((self.helper.leaderBoard.first?.level)! + 1)"
     }
     
     // clearing leadboard from user defaults
@@ -312,7 +312,6 @@ class GameViewController: UIViewController,
     tableNode.rotation = SCNVector4(x: 1, y: 0, z: 0, w: Float(M_PI))
 
     helper.state = .gameOver
-    helper.defaults.set(self.helper.currentLevel, forKey: "LevelReached")
     
     let transition = SKTransition.doorsCloseHorizontal(withDuration: 0.4)
     
@@ -511,9 +510,10 @@ class GameViewController: UIViewController,
       
       // TODO: save current level to user defaults
       
-      
       let waitAction = SCNAction.wait(duration: 1.5)
       let blockAction = SCNAction.run { _ in
+
+        self.helper.defaults.set(self.helper.currentLevel, forKey: "LevelReached")
 
         //self.presentGameOver()
         //self.resetLevel()
@@ -522,11 +522,8 @@ class GameViewController: UIViewController,
         //self.helper.score = 0
         self.counter = 0
         
-        //let waitAction2 = SCNAction.wait(duration: 1.5)
-        //let blockAction2 = SCNAction.run { _ in
-          // CAPTURE USERNAME
-          self.presentEnterUsername()
-        //}
+        // CAPTURE USERNAME
+        self.presentEnterUsername()
         
       }
       let sequenceAction = SCNAction.sequence([waitAction, blockAction])
@@ -639,19 +636,16 @@ class GameViewController: UIViewController,
         let transition = SKTransition.doorway(withDuration: 0.5)
         
         
-        // TODO: denote which levels have been completed to date
+        // Denote which levels have been completed to date
         
-        
-        //for n in 1...4 {
-          //let lSS = levelSelectorScene.rootNode.childNode(withName: "box\(n)", recursively: true)
-          //lSS?.geometry?.materials[0].diffuse.contents = UIColor.green
-        //}
         for n in levelsCompleted+1...9 {
           let lSS = levelSelectorScene.rootNode.childNode(withName: "box\(n)", recursively: true)
           lSS?.geometry?.materials[0].diffuse.contents = UIColor.red
         }
-        let lSS = levelSelectorScene.rootNode.childNode(withName: "box\(levelsCompleted+1)", recursively: true)
-        lSS?.geometry?.materials[0].diffuse.contents = UIColor.green
+        for n in 1...levelsCompleted {
+          let lSS = levelSelectorScene.rootNode.childNode(withName: "box\(n)", recursively: true)
+          lSS?.geometry?.materials[0].diffuse.contents = UIColor.green
+        }
       
         scnView.present(
           levelSelectorScene,

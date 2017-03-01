@@ -169,7 +169,7 @@ class GameHelper {
       leaderBoardLabelNode[i].fontSize = 18
       leaderBoardLabelNode[i].position = CGPoint(x: 0, y: yPos)
       leaderBoardLabelNode[i].horizontalAlignmentMode = .left
-      leaderBoardLabelNode[i].text = "\(i+1) : \(entry.name!) : \(entry.score!) : \(entry.level!)"
+      leaderBoardLabelNode[i].text = "\(i+1) : \(entry.name!) : \(entry.score!) : \(entry.level!+1)"
       
       if (leaderBoardLabelNode[i].parent == nil) {
         skScene.addChild(leaderBoardLabelNode[i])
