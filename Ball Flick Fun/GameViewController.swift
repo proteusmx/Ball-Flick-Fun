@@ -104,6 +104,7 @@ class GameViewController: UIViewController,
     if counter == 0 {
       let waitAction = SCNAction.wait(duration: 0.5)
       let blockAction = SCNAction.run { _ in
+        
         self.presentGameOver()
         self.resetLevel()
         self.helper.ballNodes.removeAll()
@@ -184,7 +185,9 @@ class GameViewController: UIViewController,
     // ** Capture name for highscore table
     //1. Create the alert controller.
     
-    var gameOverMessage = "Game Over \n\n  You scored \(self.helper.score) points!"
+    let levelsCompleted = helper.defaults.integer(forKey: "LevelReached")
+    
+    var gameOverMessage = "Game Over \n\n  You scored \(self.helper.score) points! You reached level \(levelsCompleted)"
     
     if self.helper.score == 0 {
       gameOverMessage += " \n\nCome on, try harder!!"
@@ -200,7 +203,6 @@ class GameViewController: UIViewController,
     
     let usernameFromDefaults = UserDefaults.standard.string(forKey: "Username")
     
-    
     //2. Add the text field. You can configure it however you need.
     alert.addTextField { (textField) in
       textField.text = usernameFromDefaults
@@ -215,7 +217,7 @@ class GameViewController: UIViewController,
       self.helper.defaults.set(self.textField.text, forKey: "Username")
       self.helper.defaults.set(Date(), forKey: "LastRun")
       
-      self.helper.leaderBoard.append( LBoard(name: self.textField.text!, score: self.helper.score, dateTime: Date()) )
+      self.helper.leaderBoard.append( LBoard(name: self.textField.text!, score: self.helper.score, dateTime: Date(), level: self.helper.currentLevel) )
 
       //sort array, so th§at highest scores are top
       self.helper.leaderBoard = self.helper.leaderBoard.sorted(by: {$0.score > $1.score})
@@ -227,7 +229,7 @@ class GameViewController: UIViewController,
       
       //Decode
       let decoded = self.helper.defaults.object(forKey: "leaderBoard") as! Data
-      var decodedLBoard = NSKeyedUnarchiver.unarchiveObject(with: decoded) as! [LBoard]
+      let decodedLBoard = NSKeyedUnarchiver.unarchiveObject(with: decoded) as! [LBoard]
 
       //sort array, so th§at highest scores are top
       //decodedLBoard = decodedLBoard.sorted(by: {$0.score > $1.score})
@@ -237,20 +239,22 @@ class GameViewController: UIViewController,
         print(". entry.dateTime = \(entry.dateTime!)")
         print(". entry.name = \(entry.name!)")
         print(". entry.score = \(entry.score!)")
+        print(". entry.level = \(entry.level!)")
         print("-----------")
       }
       
+      self.presentGameOver()
     }))
     
     // 4. Present the alert.
-    self.present(alert, animated: true, completion: nil)
+    self.present(alert, animated: true, completion: nil )
   }
   
   
   // MARK: - Helpers
   func presentMenu() {
     
-    helper.menuHUDMaterial.diffuse.contents = chosenImage;
+    //helper.menuHUDMaterial.diffuse.contents = chosenImage;
     
     let hudNode = menuScene.rootNode.childNode(withName: "hud", recursively: true)!
     hudNode.geometry?.materials = [helper.menuHUDMaterial]
@@ -267,8 +271,8 @@ class GameViewController: UIViewController,
     var s = 0
     if self.helper.leaderBoard.count > 0 {
       s = (self.helper.leaderBoard.first?.score)!
+      helper.highScoreLabel.text = "Highscore: \(s) (\((self.helper.leaderBoard.first?.name)!))"
     }
-    helper.highScoreLabel.text = "Highscore: \(s) (\((self.helper.leaderBoard.first?.name)!))"
     
     // clearing leadboard from user defaults
     //self.helper.defaults.set(nil, forKey: "leaderBoard")
@@ -302,36 +306,21 @@ class GameViewController: UIViewController,
   
   // Present ** GAME OVER **  Scene
   func presentGameOver() {
-    //let tableNode = gameOverScene.rootNode.childNode(withName: "table", recursively: true)!
+    let tableNode = gameOverScene.rootNode.childNode(withName: "table", recursively: true)!
     
-    //SCNMaterial
-      /*
-    tableNode.geometry?.materials
+    tableNode.geometry?.materials = [self.helper.hsMaterial]
+    tableNode.rotation = SCNVector4(x: 1, y: 0, z: 0, w: Float(M_PI))
 
-    let sceneSize = CGSize(width: 300, height: 100)
-    let skScene = SKScene(size: sceneSize)
-
-    var highScoreLabel = SKLabelNode(fontNamed: "Menlo-Bold")
-    highScoreLabel.text = "Highscore: \((self.helper.leaderBoard.first?.score)!) (\((self.helper.leaderBoard.first?.name)!))"
-    highScoreLabel.fontSize = 18
-    highScoreLabel.position.x = 10
-    highScoreLabel.position.y = 35
-    skScene.addChild(highScoreLabel)
-    */
-    
     helper.state = .gameOver
+    helper.defaults.set(self.helper.currentLevel, forKey: "LevelReached")
     
-    //TODO: add leaderboard
-    
-    presentEnterUsername()
-
     let transition = SKTransition.doorsCloseHorizontal(withDuration: 0.4)
     
     scnView.present(
       gameOverScene,
       with: transition,
       incomingPointOfView: nil,
-      completionHandler: nil
+      completionHandler: self.resetLevel
     )
     
   }
@@ -438,8 +427,8 @@ class GameViewController: UIViewController,
   
   
   func dispenseNewBall() {
-    let ballScene = SCNScene(named: "resources.scnassets/Ball.scn")!
     
+    let ballScene = SCNScene(named: "resources.scnassets/Ball.scn")!
     let ballNode = ballScene.rootNode.childNode(withName: "sphere", recursively: true)!
     ballNode.name = "ball"
     let ballPhysicsBody = SCNPhysicsBody(
@@ -513,27 +502,36 @@ class GameViewController: UIViewController,
     // End of game *************************************************************
     if helper.ballNodes.count == GameHelper.maxBallNodes+1 {
 
+
       // On last ball, on throw, move camera to spotlight position
       self.cameraNode.position = self.spotlightPosition
       self.cameraNode.eulerAngles = self.spotlightEuler
 
-
       myTimer.invalidate()
       
       // TODO: save current level to user defaults
-
+      
+      
       let waitAction = SCNAction.wait(duration: 1.5)
       let blockAction = SCNAction.run { _ in
-        self.presentGameOver()
-        self.resetLevel()
+
+        //self.presentGameOver()
+        //self.resetLevel()
         self.helper.ballNodes.removeAll()
-        self.helper.currentLevel = 0
+        //self.helper.currentLevel = 0
         //self.helper.score = 0
         self.counter = 0
-        //TODO: add 'Game Over' sound/music
+        
+        //let waitAction2 = SCNAction.wait(duration: 1.5)
+        //let blockAction2 = SCNAction.run { _ in
+          // CAPTURE USERNAME
+          self.presentEnterUsername()
+        //}
+        
       }
       let sequenceAction = SCNAction.sequence([waitAction, blockAction])
       levelScene.rootNode.runAction(sequenceAction, forKey: GameHelper.gameEndActionKey)
+
       
     // Add new balls
     } else {
@@ -632,6 +630,8 @@ class GameViewController: UIViewController,
         //self.cameraNode.position.x = (hitResults.first?.worldCoordinates.x)!
       }
       
+      let levelsCompleted = helper.defaults.integer(forKey: "LevelReached")
+      
       if hitResults.first?.node == hudNode {
         //presentLevel()
         
@@ -639,13 +639,20 @@ class GameViewController: UIViewController,
         let transition = SKTransition.doorway(withDuration: 0.5)
         
         
-        for n in 1...9 {
-          var lSS = levelSelectorScene.rootNode.childNode(withName: "box\(n)", recursively: true)
-          lSS?.geometry?.materials[0].diffuse.contents = UIColor.blue
+        // TODO: denote which levels have been completed to date
+        
+        
+        //for n in 1...4 {
+          //let lSS = levelSelectorScene.rootNode.childNode(withName: "box\(n)", recursively: true)
+          //lSS?.geometry?.materials[0].diffuse.contents = UIColor.green
+        //}
+        for n in levelsCompleted+1...9 {
+          let lSS = levelSelectorScene.rootNode.childNode(withName: "box\(n)", recursively: true)
+          lSS?.geometry?.materials[0].diffuse.contents = UIColor.red
         }
-        
-        
-        
+        let lSS = levelSelectorScene.rootNode.childNode(withName: "box\(levelsCompleted+1)", recursively: true)
+        lSS?.geometry?.materials[0].diffuse.contents = UIColor.green
+      
         scnView.present(
           levelSelectorScene,
           with: transition,
@@ -667,11 +674,13 @@ class GameViewController: UIViewController,
         var temp  = n.characters.map{String($0)}
         let o = Int(String(temp[3]))
         
-        helper.currentLevel = o! - 1
-        //presentLevel()
+        if o! <= levelsCompleted+1 {
+          helper.currentLevel = o! - 1
+          presentLevel()
+        }
         
         //hitResults.first?.node.position.z = -4
-        hitResults.first?.node.geometry?.materials[0].diffuse.contents = UIColor.blue
+        //hitResults.first?.node.geometry?.materials[0].diffuse.contents = UIColor.blue
       }
 
       //let camNode = menuScene.rootNode.childNode(withName: "camera", recursively: true)!
@@ -830,10 +839,10 @@ extension GameViewController: SCNPhysicsContactDelegate {
       let ballsRemaining = (GameHelper.maxBallNodes - helper.ballNodes.count)
       
       // extra points for ball remaining
-      helper.score += (ballsRemaining * 5)
+      helper.score += (ballsRemaining * 2)
       
       // extra points for time remaining
-      helper.score += (counter)
+      helper.score += (counter / 100)
       
       
       if levelScene.rootNode.action(forKey: GameHelper.gameEndActionKey) != nil {
@@ -866,23 +875,27 @@ class LBoard: NSObject, NSCoding{
   var name: String!
   var score: Int!
   var dateTime: Date!
+  var level: Int!
   
-  init(name:String, score: Int, dateTime: Date) {
+  init(name:String, score: Int, dateTime: Date, level: Int) {
     self.name = name
     self.score = score
     self.dateTime = dateTime
+    self.level = level
   }
   
   required convenience init(coder aDecoder: NSCoder) {
     let name = aDecoder.decodeObject(forKey: "name") as! String
     let score = aDecoder.decodeObject(forKey: "score") as! Int
     let dateTime = aDecoder.decodeObject(forKey: "dateTime") as! Date
-    self.init(name: name, score: score, dateTime: dateTime)
+    let level = aDecoder.decodeObject(forKey: "level") as! Int
+    self.init(name: name, score: score, dateTime: dateTime, level: level)
   }
   
   func encode(with aCoder: NSCoder) {
     aCoder.encode(name, forKey: "name")
     aCoder.encode(score, forKey: "score")
     aCoder.encode(dateTime, forKey: "dateTime")
+    aCoder.encode(level, forKey: "level")
   }
 }

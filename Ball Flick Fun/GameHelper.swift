@@ -13,13 +13,14 @@ struct GameLevel {
 class GameHelper {
 
   var leaderBoard = [LBoard]()
+  var leaderBoardLabelNode: [SKLabelNode] = []
   
   let defaults = UserDefaults.standard
   
   let textField = UITextField()
   
   // Maximum number of ball attempts
-  static let maxBallNodes = 6 // AKA number of lives
+  static let maxBallNodes = 2 // AKA number of lives
   
   // Start level
   var currentLevel = 0
@@ -29,9 +30,11 @@ class GameHelper {
   
   // Hud nodes
   var hudNode: SCNNode!
+  var hudNode2: SCNNode!
   fileprivate var titleLabelNode: SKLabelNode!
   fileprivate var livesLabelNode: SKLabelNode!
   fileprivate var scoreLabelNode: SKLabelNode!
+  fileprivate var highScoreLabelNode: SKLabelNode!
   var timeLabelNode: SKLabelNode!
   
   // Gameplay references
@@ -65,32 +68,29 @@ class GameHelper {
   
   var highScoreLabel: SKLabelNode!
   
-  var leaderboardFirst: SKLabelNode!
-  var leaderboardSecond: SKLabelNode!
-  
   
   // Menu screen HUD view setup
   var menuHUDMaterial: SCNMaterial {
-
+    
     let sceneSize = CGSize(width: 300, height: 100)
     let skScene = SKScene(size: sceneSize)
-    skScene.backgroundColor = UIColor(white: 0.0, alpha: 0.0)
+    //skScene.backgroundColor = UIColor(white: 0.0, alpha: 0.0)
     
-    let x = SKSpriteNode(imageNamed: "ball_pink_stripe.png")
-    
-    skScene.addChild(x)
+    //let x = SKSpriteNode(imageNamed: "ball_pink_stripe.png")
+    //skScene.addChild(x)
     
     let startLabel = SKLabelNode(fontNamed: "Menlo-Bold")
-    startLabel.fontSize = 50
-    startLabel.text = "👉🏼START👈🏼"
+    startLabel.fontSize = 46
+    startLabel.text = "👉🏼play👈🏼"
+    //startLabel.fontColor = UIColor.green
     startLabel.position.x = sceneSize.width / 2
-    startLabel.position.y = 55
+    startLabel.position.y = sceneSize.height / 2
     skScene.addChild(startLabel)
     
     highScoreLabel = SKLabelNode(fontNamed: "Menlo-Bold")
-    highScoreLabel.fontSize = 18
+    highScoreLabel.fontSize = 12
     highScoreLabel.position.x = sceneSize.width / 2
-    highScoreLabel.position.y = 35
+    highScoreLabel.position.y = 22
     skScene.addChild(highScoreLabel)
     
     let versionLabelNode = SKLabelNode(fontNamed: "Menlo-Bold")
@@ -101,26 +101,84 @@ class GameHelper {
     versionLabelNode.position.x = sceneSize.width / 2
     versionLabelNode.position.y = 5
     skScene.addChild(versionLabelNode)
-
+    
     /*
      TODO: redo attempt to display a TextField to capture name
-    
-    let rect = CGRect(origin: CGPoint(x: 5,y :5), size: CGSize(width: 100, height: 100))
-    textField.frame = rect
-    var x: SKNode = ""
-    x.ad
-    skScene.addChild(textField)
+     
+     let rect = CGRect(origin: CGPoint(x: 5,y :5), size: CGSize(width: 100, height: 100))
+     textField.frame = rect
+     var x: SKNode = ""
+     x.ad
+     skScene.addChild(textField)
+     
+     let picLabelNode = SKLabelNode(fontNamed: "Menlo-Bold")
+     picLabelNode.text = "Select Pics 📷"
+     picLabelNode.fontSize = 30
+     picLabelNode.position.x = sceneSize.width / 2
+     picLabelNode.position.y = 35
+     skScene.addChild(picLabelNode)
      */
     
-    /*
-    let picLabelNode = SKLabelNode(fontNamed: "Menlo-Bold")
-    picLabelNode.text = "Select Pics 📷"
-    picLabelNode.fontSize = 30
-    picLabelNode.position.x = sceneSize.width / 2
-    picLabelNode.position.y = 35
-    skScene.addChild(picLabelNode)
-    */
- 
+    let material = SCNMaterial()
+    material.lightingModel = SCNMaterial.LightingModel.constant
+    material.isDoubleSided = true
+    material.diffuse.contents = skScene
+    
+    
+    return material
+  }
+  
+  
+  
+  // Menu screen HUD view setup
+  var hsMaterial: SCNMaterial {
+    
+    
+
+    let sceneSize = CGSize(width: 330, height: 360)
+    let skScene = SKScene(size: sceneSize)
+    skScene.backgroundColor = UIColor(white: 0.0, alpha: 0.0)
+
+    skScene.removeAllChildren()
+    leaderBoardLabelNode.removeAll()
+    
+    let title = SKLabelNode(fontNamed: "Menlo-Bold")
+    title.fontSize = 32
+    title.position.x = sceneSize.width / 2
+    title.position.y = 290
+    title.text = "LEADERBOARD"
+    skScene.addChild(title)
+    
+    let heading = SKLabelNode(fontNamed: "Courier-Bold")
+    heading.fontSize = 18
+    heading.position = CGPoint(x: 0, y: 260)
+    heading.horizontalAlignmentMode = .left
+    heading.text = "POS : USERNAME : SCORE : LEVEL"
+    skScene.addChild(heading)
+    
+    var yPos = 230
+    var i = 0
+    
+    
+    for entry in self.leaderBoard {
+      
+      yPos -= 30
+
+      leaderBoardLabelNode.append(SKLabelNode(fontNamed: "Courier-Bold"))
+      leaderBoardLabelNode[i].name = "l\(i)"
+      leaderBoardLabelNode[i].fontSize = 18
+      leaderBoardLabelNode[i].position = CGPoint(x: 0, y: yPos)
+      leaderBoardLabelNode[i].horizontalAlignmentMode = .left
+      leaderBoardLabelNode[i].text = "\(i+1) : \(entry.name!) : \(entry.score!) : \(entry.level!)"
+      
+      if (leaderBoardLabelNode[i].parent == nil) {
+        skScene.addChild(leaderBoardLabelNode[i])
+      }
+      //print(". entry.dateTime = \(entry.dateTime!)")
+      i += 1
+    }
+    
+    
     let material = SCNMaterial()
     material.lightingModel = SCNMaterial.LightingModel.constant
     material.isDoubleSided = true
@@ -128,6 +186,9 @@ class GameHelper {
     
     return material
   }
+  
+  
+  
   
   // Game state / screen
   enum GameStateType {
@@ -184,8 +245,6 @@ class GameHelper {
 
     //Load and decode leaderboard
     
-    self.leaderBoard.append( LBoard(name: "test", score: 0, dateTime: Date()) )
-    
     //Encode leaderbaord to store in User Defaults
     let encodedData: Data = NSKeyedArchiver.archivedData(withRootObject: self.leaderBoard)
     self.defaults.set(encodedData, forKey: "leaderBoard")
@@ -208,6 +267,7 @@ class GameHelper {
         print(". entry.dateTime = \(entry.dateTime!)")
         print(". entry.name = \(entry.name!)")
         print(". entry.score = \(entry.score!)")
+        print(". entry.level = \(entry.level!)")
         print("-----------")
       }
       
